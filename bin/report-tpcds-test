@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Shell script for reporting the validation results of TPCDS queries
+
+set -e -o pipefail
+
+# Determine the current working directory
+_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+if [ -z "${SPARK_HOME}" ]; then
+  # If SPARK_HOME not defined, fetch the latest Spark code from the repository
+  export SPARK_HOME=`mktemp -d`
+  git clone https://github.com/apache/spark ${SPARK_HOME}
+  echo "env SPARK_HOME not defined, so use path '${SPARK_HOME}' as SPARK_HOME" 1>&2
+fi
+
+# Check if an output file prefix is given
+if [ $# -lt 1 ]; then
+  echo "Usage: report-tpcds-benchmark <TPCDS data> <output file prefix>" 1>&2
+  exit 1
+fi
+
+TPCDS_DATA=$1
+OUTPUT_FILE_PREFIX=$2
+
+# Output validation results into a temporary file
+_RESULTS_TEMP_FILE=`mktemp`
+${_DIR}/../bin/run-tpcds-sf-test \
+  --conf spark.master=local[1]   \
+  --conf spark.driver.memory=8g  \
+  --data-location ${TPCDS_DATA}  \
+  > ${_RESULTS_TEMP_FILE}
+
+# Format the output results and write them in the report file
+_DATE=`LANG=en_US.UTF-8 date '+%Y%m%d'`
+_RESULT_OUTPUT=`cat ${_RESULTS_TEMP_FILE}`
+if [[ ${_RESULT_OUTPUT} = *FAILED* ]]; then
+  OUTPUT_FILE=${OUTPUT_FILE_PREFIX}.FAILED-${_DATE}.log
+else
+  OUTPUT_FILE=${OUTPUT_FILE_PREFIX}.PASSED-${_DATE}.log
+fi
+
+cat ${_RESULTS_TEMP_FILE} >> ${OUTPUT_FILE}
+echo "TPCDS validation results written to ${OUTPUT_FILE}" 1>&2
+
+# Format metrics and append them into reports/metrics
+${_DIR}/../bin/format-codegen-metrics ${OUTPUT_FILE} classes avg >> ${_DIR}/../reports/metrics/codegen-classes-avg.csv
+${_DIR}/../bin/format-codegen-metrics ${OUTPUT_FILE} classes max >> ${_DIR}/../reports/metrics/codegen-classes-max.csv
+${_DIR}/../bin/format-codegen-metrics ${OUTPUT_FILE} methods avg >> ${_DIR}/../reports/metrics/codegen-methods-avg.csv
+${_DIR}/../bin/format-codegen-metrics ${OUTPUT_FILE} methods max >> ${_DIR}/../reports/metrics/codegen-methods-max.csv
+
