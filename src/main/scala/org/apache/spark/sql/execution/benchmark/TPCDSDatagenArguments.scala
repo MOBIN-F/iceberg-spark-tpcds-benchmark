@@ -33,6 +33,7 @@ class TPCDSDatagenArguments(val args: Array[String]) {
   var filterOutNullPartitionValues = false
   var tableFilter: Set[String] = Set.empty
   var numPartitions = "100"
+  var iceberg = false
 
   parseArgs(args.toList)
   validateArguments()
@@ -56,6 +57,10 @@ class TPCDSDatagenArguments(val args: Array[String]) {
 
         case ("--overwrite") :: tail =>
           overwrite = true
+          args = tail
+
+        case ("--iceberg") :: tail =>
+          iceberg = true
           args = tail
 
         case ("--partition-tables") :: tail =>
@@ -107,6 +112,7 @@ class TPCDSDatagenArguments(val args: Array[String]) {
       |  --scale-factor [NUM]                   Scale factor (default: 1)
       |  --format [STR]                         Output format (default: parquet)
       |  --overwrite                            Whether it overwrites existing data (default: false)
+      |  --iceberg                              Whether it generate iceberg data (default: false)
       |  --partition-tables                     Whether it partitions output data (default: false)
       |  --use-double-for-decimal               Whether it prefers double types instead of decimal types (default: false)
       |  --use-string-for-char                  Whether it prefers string types instead of char/varchar types (default: false)
