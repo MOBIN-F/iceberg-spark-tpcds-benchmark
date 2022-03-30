@@ -135,6 +135,7 @@ class Tables(sqlContext: SQLContext, scaleFactor: Int) extends Serializable {
         location: String,
         format: String,
         overwrite: Boolean,
+        iceberg: Boolean,
         clusterByPartitionColumns: Boolean,
         filterOutNullPartitionValues: Boolean,
         numPartitions: Int): Unit = {
@@ -175,9 +176,12 @@ class Tables(sqlContext: SQLContext, scaleFactor: Int) extends Serializable {
         // If the table is not partitioned, coalesce the data to a single file.
         data.coalesce(1).write
       }
-     // writer.format(format).mode(mode)
-   //   data.writeTo(name).using("iceberg").create()
-      writer.format("iceberg").mode(mode)
+      if (iceberg) {
+        writer.format("iceberg").mode(mode)
+      } else {
+        writer.format(format).mode(mode)
+      }
+
       if (partitionColumns.nonEmpty) {
         writer.partitionBy(partitionColumns : _*)
       }
@@ -212,6 +216,7 @@ class Tables(sqlContext: SQLContext, scaleFactor: Int) extends Serializable {
       location: String,
       format: String,
       overwrite: Boolean,
+      iceberg: Boolean,
       partitionTables: Boolean,
       useDoubleForDecimal: Boolean,
       useStringForChar: Boolean,
@@ -241,7 +246,7 @@ class Tables(sqlContext: SQLContext, scaleFactor: Int) extends Serializable {
 
     withSpecifiedDataType.foreach { table =>
       val tableLocation = s"$location/${table.name}"
-      table.genData(tableLocation, format, overwrite, clusterByPartitionColumns,
+      table.genData(tableLocation, format, overwrite, iceberg, clusterByPartitionColumns,
         filterOutNullPartitionValues, numPartitions)
     }
   }
@@ -809,20 +814,28 @@ object TPCDSDatagen {
      * --conf spark.sql.catalog.hive_prod.warehouse=hdfs:///tmp/iceberg_hivemeta
      */
     val datagenArgs = new TPCDSDatagenArguments(args)
-    val spark = SparkSession
+    val sparkBuilder = SparkSession
       .builder
-      .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-      .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
-      .config("spark.sql.catalog.spark_catalog.type", "hive")
-      .config("spark.sql.catalog.hadoop_prod", "org.apache.iceberg.spark.SparkCatalog")
-      .config("spark.sql.catalog.hadoop_prod.type", "hadoop")
-      .config("spark.sql.catalog.hadoop_prod.warehouse", "file:///tmp/iceberg_hadoop_50")
-      .master("local[2]").getOrCreate()
-    val tpcdsTables = new Tables(spark.sqlContext, datagenArgs.scaleFactor.toInt)
+
+    if (datagenArgs.iceberg) {
+      sparkBuilder
+        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
+        .config("spark.sql.catalog.spark_catalog.type", "hive")
+        .config("spark.sql.catalog.hadoop_prod", "org.apache.iceberg.spark.SparkCatalog")
+        .config("spark.sql.catalog.hadoop_prod.type", "hadoop")
+        .config("spark.sql.catalog.hadoop_prod.warehouse", "file:///tmp/iceberg_hadoop_50")
+    }
+
+    val sparkSession = sparkBuilder.master("local[2]").getOrCreate()
+
+
+    val tpcdsTables = new Tables(sparkSession.sqlContext, datagenArgs.scaleFactor.toInt)
     tpcdsTables.genData(
       datagenArgs.outputLocation,
       datagenArgs.format,
       datagenArgs.overwrite,
+      datagenArgs.iceberg,
       datagenArgs.partitionTables,
       datagenArgs.useDoubleForDecimal,
       datagenArgs.useStringForChar,
@@ -830,6 +843,6 @@ object TPCDSDatagen {
       datagenArgs.filterOutNullPartitionValues,
       datagenArgs.tableFilter,
       datagenArgs.numPartitions.toInt)
-    spark.stop()
+    sparkSession.stop()
   }
 }
