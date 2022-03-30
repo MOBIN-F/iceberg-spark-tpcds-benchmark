@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias
 import org.apache.spark.sql.catalyst.util.DateTimeConstants.NANOS_PER_SECOND
 import org.apache.spark.sql.catalyst.util.resourceToString
+import org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark_par.spark
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
@@ -34,13 +35,13 @@ object TPCDSQueryBenchmark extends SqlBasedBenchmark with Logging {
       .set("spark.sql.autoBroadcastJoinThreshold", (20 * 1024 * 1024).toString)
       .set("spark.sql.crossJoin.enabled", "true")
 
+
     SparkSession.builder.config(conf)
       .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
       .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
       .config("spark.sql.catalog.spark_catalog.type", "hive")
       .config("spark.sql.catalog.hadoop_prod", "org.apache.iceberg.spark.SparkCatalog")
       .config("spark.sql.catalog.hadoop_prod.type", "hadoop")
-      .config("spark.sql.catalog.hadoop_prod.warehouse", "file:///tmp/iceberg_hadoop")
       .getOrCreate()
   }
 
@@ -50,14 +51,19 @@ object TPCDSQueryBenchmark extends SqlBasedBenchmark with Logging {
     "web_returns", "web_site", "reason", "call_center", "warehouse", "ship_mode", "income_band",
     "time_dim", "web_page")
 
-  def setupTables(dataLocation: String, createTempView: Boolean): Map[String, Long] = {
+  def setupTables(dataLocation: String, iceberg: Boolean, createTempView: Boolean): Map[String, Long] = {
     tables.map { tableName =>
       if (createTempView) {
-        val tablePath = "/tmp/iceberg_hadoop/" + tableName
-        val dataFrame = spark.read
-        //  .option("vectorization-enabled",true)
-          .format("iceberg").load(tablePath)
-        dataFrame.createOrReplaceTempView(tableName)
+        val tablePath = s"$dataLocation/$tableName"
+        if (iceberg) {
+          val dataFrame = spark.read
+            //  .option("vectorization-enabled",true)
+            .format("iceberg").load(tablePath)
+          dataFrame.createOrReplaceTempView(tableName)
+        } else {
+          spark.read.parquet(tablePath).createOrReplaceTempView(tableName)
+        }
+
       } else {
         spark.sql(s"DROP TABLE IF EXISTS $tableName")
         spark.catalog.createTable(tableName, s"$dataLocation/$tableName", "parquet")
@@ -151,7 +157,7 @@ object TPCDSQueryBenchmark extends SqlBasedBenchmark with Logging {
         s"Empty queries to run. Bad query name filter: ${benchmarkArgs.queryFilter}")
     }
 
-    val tableSizes = setupTables(benchmarkArgs.dataLocation,
+    val tableSizes = setupTables(benchmarkArgs.dataLocation,benchmarkArgs.iceberg,
       createTempView = !benchmarkArgs.cboEnabled)
     if (benchmarkArgs.cboEnabled) {
       spark.sql(s"SET ${SQLConf.CBO_ENABLED.key}=true")
