@@ -13,6 +13,7 @@ class TPCDSQueryBenchmarkArguments(val args: Array[String]) {
   var dataLocation: String = null
   var queryFilter: Set[String] = Set.empty
   var cboEnabled: Boolean = false
+  var iceberg: Boolean = false
 
   parseArgs(args.toList)
   validateArguments()
@@ -38,6 +39,10 @@ class TPCDSQueryBenchmarkArguments(val args: Array[String]) {
           cboEnabled = true
           args = tail
 
+        case optName :: tail if optionMatch("--iceberg", optName) =>
+          iceberg = true
+          args = tail
+
         case _ =>
           // scalastyle:off println
           System.err.println("Unknown/unsupported param " + args)
@@ -55,6 +60,7 @@ class TPCDSQueryBenchmarkArguments(val args: Array[String]) {
                          |  --data-location      Path to TPCDS data
                          |  --query-filter       Queries to filter, e.g., q3,q5,q13
                          |  --cbo                Whether to enable cost-based optimization
+                         |  --iceberg            iceberg
                          |
                          |------------------------------------------------------------------------------------------------------------------
                          |In order to run this benchmark, please follow the instructions at
