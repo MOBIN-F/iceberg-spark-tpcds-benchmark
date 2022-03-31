@@ -9,7 +9,6 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.plans.logical.SubqueryAlias
 import org.apache.spark.sql.catalyst.util.DateTimeConstants.NANOS_PER_SECOND
 import org.apache.spark.sql.catalyst.util.resourceToString
-import org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark_par.spark
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
@@ -92,6 +91,8 @@ object TPCDSQueryBenchmark extends SqlBasedBenchmark with Logging {
       val queryRelations = scala.collection.mutable.HashSet[String]()
       spark.sql(queryString).queryExecution.analyzed.foreach {
         case SubqueryAlias(alias, _: DataSourceV2Relation) =>
+          queryRelations.add(alias.name)
+        case SubqueryAlias(alias, _: LogicalRelation) =>
           queryRelations.add(alias.name)
         case LogicalRelation(_, _, Some(catalogTable), _) =>
           queryRelations.add(catalogTable.identifier.table)
