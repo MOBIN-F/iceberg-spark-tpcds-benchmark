@@ -56,7 +56,7 @@ object TPCDSQueryBenchmark extends SqlBasedBenchmark with Logging {
         val tablePath = s"$dataLocation/$tableName"
         if (iceberg) {
           val dataFrame = spark.read
-            //  .option("vectorization-enabled",true)
+            .option("vectorization-enabled",true)
             .format("iceberg").load(tablePath)
           dataFrame.createOrReplaceTempView(tableName)
         } else {
