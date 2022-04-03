@@ -60,7 +60,7 @@ class TPCDSQueryBenchmarkArguments(val args: Array[String]) {
                          |  --data-location      Path to TPCDS data
                          |  --query-filter       Queries to filter, e.g., q3,q5,q13
                          |  --cbo                Whether to enable cost-based optimization
-                         |  --iceberg            iceberg
+                         |  --iceberg            iceberg table
                          |
                          |------------------------------------------------------------------------------------------------------------------
                          |In order to run this benchmark, please follow the instructions at
