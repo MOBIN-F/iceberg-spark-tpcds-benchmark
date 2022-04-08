@@ -41,7 +41,7 @@ parse_args_for_spark_submit "$@"
 find_resource() {
   local tpcds_datagen_version=`grep "<version>" "${_DIR}/../pom.xml" | head -n2 | tail -n1 | awk -F '[<>]' '{print $3}'`
   local scala_version=`grep "<scala.binary.version>" "${_DIR}/../pom.xml" | head -n1 | awk -F '[<>]' '{print $3}'`
-  local jar_file="spark-tpcds-datagen_${scala_version}-${tpcds_datagen_version}-with-dependencies.jar"
+  local jar_file="iceberg-spark-tpcds-${tpcds_datagen_version}-with-dependencies.jar"
   local built_jar="$_DIR/../target/${jar_file}"
   if [ -e "$built_jar" ]; then
     RESOURCE=$built_jar
@@ -55,7 +55,7 @@ find_resource
 
 echo "Using \`spark-submit\` from path: $SPARK_HOME" 1>&2
 exec "${SPARK_HOME}"/bin/spark-submit                                  \
-  --class org.apache.spark.sql.execution.benchmark.TPCDSQueryValidator \
+  --class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark \
   $(join_by " " ${SPARK_CONF[@]})                                      \
   ${RESOURCE}                                                          \
   $(join_by " " ${ARGS[@]})
