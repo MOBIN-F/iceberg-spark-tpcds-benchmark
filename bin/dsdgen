@@ -28,14 +28,6 @@ fi
 # Determine the current working directory
 _DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Load common functions
-. "${_DIR}/utils.sh"
-
-# If Spark not compiled, do it here
-check_spark_compiled
-
-# Do some preparations before launching spark-submit
-parse_args_for_spark_submit "$@"
 
 # Resolve a jar location for the TPCDS data generator
 find_resource() {
@@ -52,11 +44,10 @@ find_resource() {
 }
 
 find_resource
-
 echo "Using \`spark-submit\` from path: $SPARK_HOME" 1>&2
 exec "${SPARK_HOME}"/bin/spark-submit  --master local[4]                         \
   --class org.apache.spark.sql.execution.benchmark.TPCDSDatagen \
-  $(join_by " " ${SPARK_CONF[@]})                               \
-  ${RESOURCE}                                                   \
-  $(join_by " " ${ARGS[@]})
+  ${SPARK_CONF}               \
+  ${RESOURCE}                    \
+  $@
 
