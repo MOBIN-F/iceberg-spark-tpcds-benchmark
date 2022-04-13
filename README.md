@@ -1,4 +1,4 @@
-This is a TPCDS data generator for Apache Spark,It also support generate iceberg data, which is fork from [spark-tpcds-datagen](https://github.com/maropu/spark-tpcds-datagen)
+This is a TPCDS data generator and queries benchmark for Apache Spark,It also support iceberg data, which is fork from [spark-tpcds-datagen](https://github.com/maropu/spark-tpcds-datagen)
 
 Note that the current `master` branch intends to support [3.2.1](https://downloads.apache.org/spark/spark-3.2.1) on Scala 2.12.x.
 ## How to generate TPCDS data
@@ -31,7 +31,7 @@ You can generate TPCDS data in `/tmp/spark-tpcds-data`:
       --data-location      Path to TPCDS data
       --query-filter       Queries to filter, e.g., q3,q5,q13
       --cbo                Whether to enable cost-based optimization
-      --iceberg            iceberg table
+      --iceberg            Whether queries iceberg tables
 
 ## Run specific TPCDS quries only
 
